@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MC 選擇題答案卡生成器 (8題 / 45題)</title>
+    <!-- 引入 html2canvas 庫用於將 HTML 轉換為 PNG 圖片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2b579a;
+            --primary-hover: #1e3d6b;
+            --bg-color: #f4f6f9;
+            --panel-bg: #ffffff;
+            --border-color: #d1d5db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: row;
+            gap: 25px;
+            justify-content: center;
+        }
+
+        /* 控制面板樣式 */
+        .control-panel {
+            flex: 0 0 350px;
+            background-color: var(--panel-bg);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            height: fit-content;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            background-color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn:hover:not(.active) {
+            background-color: #f3f4f6;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 15px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn-action {
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-align: center;
+        }
+
+        .btn-png {
+            background-color: #3b82f6;
+        }
+
+        .btn-png:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-clear {
+            background-color: #ef4444;
+        }
+
+        .btn-clear:hover {
+            background-color: #dc2626;
+        }
+
+        /* 答案卡預覽區域 */
+        .preview-panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-x: auto;
+        }
+
+        /* 答案卡紙張效果 */
+        .answer-sheet-paper {
+            background-color: #ffffff;
+            padding: 20px 30px;
+            display: inline-block;
+        }
+
+        /* 標題樣式（8題模式專用） */
+        .sheet-title {
+            font-family: "Times New Roman", "KaiTi", "BiauKai", "MingLiU", serif;
+            font-size: 22px;
+            font-style: italic;
+            font-weight: normal;
+            color: #000000;
+            display: inline-block;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 1px;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        /* 外框盒子 (支援雙欄並排頂端對齊) */
+        .sheet-outer-box {
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start; /* 保證左右兩欄頂部對齊 */
+            gap: 50px; /* 控制左右兩欄之間的間距 */
+        }
+
+        /* 8題模式特有的黑色外框 */
+        .border-box {
+            border: 2px solid #000000;
+            padding: 15px 18px;
+        }
+
+        /* 通用表格結構 */
+        .answer-table {
+            border-collapse: collapse;
+        }
+        
+        .answer-table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* --- 8題模式樣式 (圓形、帶字母、黑框) --- */
+        .table-8q th {
+            font-family: "Times New Roman", serif;
+            font-size: 16px;
+            font-weight: bold;
+            color: #000000;
+            padding: 2px 8px 10px 8px;
+            text-align: center;
+            width: 36px;
+        }
+        
+        .table-8q th.num-col { width: 30px; padding-right: 10px; }
+        .table-8q td { padding: 6px 4px; }
+        
+        .table-8q .q-num {
+            font-family: "Times New Roman", serif;
+            font-size: 16px;
+            font-weight: bold;
+            color: #000000;
+            text-align: right;
+            padding-right: 12px;
+            user-select: none;
+        }
+
+        .bubble-circle {
+            width: 24px;
+            height: 24px;
+            border: 1.5px solid #7f7f7f;
+            border-radius: 50%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-family: "Arial", sans-serif;
+            font-size: 11px;
+            color: #595959;
+            cursor: pointer;
+            user-select: none;
+            background-color: #ffffff;
+            transition: all 0.1s;
+        }
+
+        .bubble-circle.filled {
+            background-color: #ff0000 !important;
+            border-color: #ff0000 !important;
+            color: #ff0000 !important; /* 文字變紅實現覆蓋效果 */
+        }
+
+        /* --- 45題模式樣式 (長方形、無字母、對齊) --- */
+        .table-45q th {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 20px;
+            font-weight: bold;
+            color: #000000;
+            padding: 0 5px 15px 5px;
+            text-align: center;
+            width: 45px; /* 固定寬度讓ABCD對齊 */
+        }
+
+        .table-45q th.num-col { width: 45px; }
+        
+        .table-45q td {
+            padding: 6px 5px; /* 控制題目的上下間距 */
+            height: 32px; /* 強制統一行高，確保左右欄絕對對齊 */
+        }
+
+        .table-45q .q-num {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 18px;
+            color: #000000;
+            text-align: right;
+            padding-right: 15px;
+            user-select: none;
+        }
+
+        .bubble-rect {
+            width: 32px;
+            height: 12px;
+            border: 1.5px solid #000000;
+            background-color: transparent;
+            display: inline-block;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            margin-top: 4px;
+        }
+
+        .bubble-rect.filled {
+            background-color: #ff0000; /* 改回紅色填滿 */
+            border-color: #ff0000;
+        }
+
+        /* 提示訊息 */
+        .tip-box {
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            font-size: 13px;
+            color: #1e40af;
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 左側控制面板 -->
+    <div class="control-panel">
+        <h2>MC 答案卡設定</h2>
+        
+        <div class="form-group">
+            <label>1. 選擇題目數量</label>
+            <div class="btn-group">
+                <button class="btn active" id="btn-8" onclick="changeMode(8)">8 題模式</button>
+                <button class="btn" id="btn-45" onclick="changeMode(45)">45 題模式</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>2. 快速輸入答案 (選填)</label>
+            <textarea id="text-answers" placeholder="例如: BCDBDACA" oninput="handleTextInput()"></textarea>
+            <div class="help-text">直接輸入英文字母，系統會自動按順序填入答案。</div>
+        </div>
+
+        <div class="tip-box">
+            <strong>💡 提示：</strong>你也可以直接在右側的答案卡上<strong>點擊選項框</strong>來模擬塗卡或修改答案！
+        </div>
+
+        <div class="action-btns">
+            <button class="btn-action btn-clear" onclick="clearAnswers()">清空所有答案</button>
+            <button class="btn-action btn-png" onclick="exportToPNG()">另存為 PNG 圖片</button>
+        </div>
+    </div>
+
+    <!-- 右側答案卡預覽 -->
+    <div class="preview-panel">
+        <div class="answer-sheet-paper" id="print-area">
+            <!-- 8題模式特有標題 -->
+            <div id="title-8q" class="sheet-title">多項選擇題答案：</div>
+            
+            <div class="sheet-outer-box border-box" id="sheet-box-content">
+                <!-- 由 JavaScript 動態生成表格 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 8; // 預設 8 題
+    let savedAnswers = {}; // 記錄答案
+
+    // 初始化生成
+    function renderSheet() {
+        const container = document.getElementById('sheet-box-content');
+        const title8q = document.getElementById('title-8q');
+        container.innerHTML = '';
+
+        if (currentMode === 8) {
+            // 8題模式配置
+            title8q.style.display = 'inline-block';
+            container.classList.add('border-box'); // 加上黑色外邊框
+            container.appendChild(createTable(1, 8, 'circle'));
+        } else {
+            // 45題模式配置
+            title8q.style.display = 'none'; // 隱藏標題
+            container.classList.remove('border-box'); // 移除黑色外邊框
+            
+            // 左欄：1 至 30 題
+            container.appendChild(createTable(1, 30, 'rect'));
+            // 右欄：31 至 45 題
+            container.appendChild(createTable(31, 45, 'rect'));
+        }
+    }
+
+    // 建立單獨一欄的表格
+    function createTable(start, end, styleType) {
+        const table = document.createElement('table');
+        table.className = styleType === 'circle' ? 'answer-table table-8q' : 'answer-table table-45q';
+
+        // 建立表頭 A B C D
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        
+        const numTh = document.createElement('th');
+        numTh.className = 'num-col';
+        headerRow.appendChild(numTh);
+
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+            const th = document.createElement('th');
+            th.textContent = letter;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // 建立表身
+        const tbody = document.createElement('tbody');
+        
+        for (let i = start; i <= end; i++) {
+            const row = document.createElement('tr');
+
+            // 題號
+            const tdNum = document.createElement('td');
+            tdNum.className = 'q-num';
+            tdNum.textContent = styleType === 'circle' ? i : (i + '.'); // 45題帶小數點，8題不帶
+            row.appendChild(tdNum);
+
+            // A B C D 四個選項框
+            ['A', 'B', 'C', 'D'].forEach(letter => {
+                const tdOption = document.createElement('td');
+                const bubble = document.createElement('div');
+                
+                // 根據模式設定圓形或長方形樣式
+                if (styleType === 'circle') {
+                    bubble.className = 'bubble-circle';
+                    bubble.textContent = letter; // 圓形模式顯示字母
+                } else {
+                    bubble.className = 'bubble-rect';
+                    // 長方形模式為空心不顯示字母
+                }
+                
+                bubble.setAttribute('data-q', i);
+                bubble.setAttribute('data-ans', letter);
+                
+                if (savedAnswers[i] === letter) {
+                    bubble.classList.add('filled');
+                }
+
+                bubble.onclick = function() {
+                    toggleBubble(i, letter);
+                };
+
+                tdOption.appendChild(bubble);
+                row.appendChild(tdOption);
+            });
+
+            tbody.appendChild(row);
+        }
+
+        table.appendChild(tbody);
+        return table;
+    }
+
+    // 切換選項框選取狀態
+    function toggleBubble(qNum, letter) {
+        if (savedAnswers[qNum] === letter) {
+            delete savedAnswers[qNum];
+        } else {
+            savedAnswers[qNum] = letter;
+        }
+        updateSheetUI();
+        syncToTextarea();
+    }
+
+    // 更新右側答案卡的 UI 狀態
+    function updateSheetUI() {
+        const bubbles = document.querySelectorAll('.bubble-circle, .bubble-rect');
+        bubbles.forEach(bubble => {
+            const q = parseInt(bubble.getAttribute('data-q'));
+            const ans = bubble.getAttribute('data-ans');
+            if (savedAnswers[q] === ans) {
+                bubble.classList.add('filled');
+            } else {
+                bubble.classList.remove('filled');
+            }
+        });
+    }
+
+    // 切換 8 題 / 45 題模式
+    function changeMode(mode) {
+        currentMode = mode;
+        document.getElementById('btn-8').classList.toggle('active', mode === 8);
+        document.getElementById('btn-45').classList.toggle('active', mode === 45);
+        
+        // 切換模式時清理超出範圍的答案
+        Object.keys(savedAnswers).forEach(key => {
+            if (parseInt(key) > mode) {
+                delete savedAnswers[key];
+            }
+        });
+
+        renderSheet();
+        syncToTextarea();
+    }
+
+    // 處理文字框批量輸入
+    function handleTextInput() {
+        const text = document.getElementById('text-answers').value.toUpperCase();
+        const cleanChars = text.replace(/[^ABCD]/g, '').split('');
+        
+        savedAnswers = {};
+        for (let i = 0; i < cleanChars.length; i++) {
+            if (i >= currentMode) break;
+            savedAnswers[i + 1] = cleanChars[i];
+        }
+        updateSheetUI();
+    }
+
+    // 將當前答案同步回文字輸入框
+    function syncToTextarea() {
+        let textArr = [];
+        for (let i = 1; i <= currentMode; i++) {
+            if (savedAnswers[i]) {
+                textArr.push(savedAnswers[i]);
+            } else {
+                textArr.push('_');
+            }
+        }
+        while (textArr.length > 0 && textArr[textArr.length - 1] === '_') {
+            textArr.pop();
+        }
+        document.getElementById('text-answers').value = textArr.join('');
+    }
+
+    // 清空
+    function clearAnswers() {
+        savedAnswers = {};
+        document.getElementById('text-answers').value = '';
+        updateSheetUI();
+    }
+
+    // 將 HTML 答案卡渲染並下載為 PNG 圖片
+    function exportToPNG() {
+        const target = document.getElementById('print-area');
+        
+        html2canvas(target, {
+            backgroundColor: '#ffffff',
+            scale: 2, // 放大 2 倍確保高解析度
+            logging: false
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `MC_Sheet_${currentMode}Q.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }).catch(err => {
+            console.error('PNG 匯出出錯:', err);
+            alert('圖片生成失敗，請再試一次。');
+        });
+    }
+
+    // 首次載入執行
+    renderSheet();
+</script>
+
+</body>
+</html>
